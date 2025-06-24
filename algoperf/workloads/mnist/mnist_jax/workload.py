@@ -13,7 +13,7 @@ import optax
 from algoperf import param_utils
 from algoperf import spec
 from algoperf.workloads.mnist.workload import BaseMnistWorkload
-
+from custom_pytorch_jax_converter import use_pytorch_weights_inplace, use_pytorch_weights_inplace_mnist
 
 class _Model(nn.Module):
 
@@ -42,8 +42,10 @@ class MnistWorkload(BaseMnistWorkload):
     del aux_dropout_rate
     init_val = jnp.ones((1, 28, 28, 1), jnp.float32)
     self._model = _Model()
+
     initial_params = self._model.init({'params': rng}, init_val,
                                       train=True)['params']
+    initial_params = use_pytorch_weights_inplace_mnist(initial_params, file_name="/results/pytorch_base_model_mnist_24june.pth")
     self._param_shapes = param_utils.jax_param_shapes(initial_params)
     self._param_types = param_utils.jax_param_types(self._param_shapes)
     return jax_utils.replicate(initial_params), None

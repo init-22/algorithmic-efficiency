@@ -135,6 +135,7 @@ class MnistWorkload(BaseMnistWorkload):
 
     torch.random.manual_seed(rng[0])
     self._model = _Model()
+    torch.save(self._model.state_dict(), "/results/pytorch_base_model_mnist_24june.pth")
     self._param_shapes = param_utils.pytorch_param_shapes(self._model)
     self._param_types = param_utils.pytorch_param_types(self._param_shapes)
     self._model.to(DEVICE)
