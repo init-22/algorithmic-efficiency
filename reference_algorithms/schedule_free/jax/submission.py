@@ -33,7 +33,7 @@ def init_optimizer_state(workload: spec.Workload,
                          hyperparameters: spec.Hyperparameters,
                          rng: spec.RandomState) -> spec.OptimizerState:
   """Creates an AdamW optimizer and a learning rate schedule."""
-  del model_params
+  model_params
   del model_state
   del rng
   lr=HPARAMS['learning_rate']
@@ -53,9 +53,9 @@ def init_optimizer_state(workload: spec.Workload,
       weight_decay=HPARAMS['weight_decay'],
       weight_lr_power=HPARAMS['weight_lr_power'],
   )
-  params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple),
-                                   workload.param_shapes)
-  optimizer_state = opt_init_fn(params_zeros_like)
+
+  model_params = jax_utils.unreplicate(model_params)
+  optimizer_state = opt_init_fn(model_params)
 
   return jax_utils.replicate(optimizer_state), opt_update_fn
 
@@ -177,7 +177,7 @@ def update_params(workload: spec.Workload,
     params = use_pytorch_weights2(new_params, file_name=file_name, replicate=True)
     are_weights_equal(new_params, params)
     del params
-    
+
   return (new_optimizer_state, opt_update_fn), new_params, new_model_state
 
 
