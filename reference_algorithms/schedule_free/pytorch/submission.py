@@ -266,6 +266,14 @@ def update_params(workload: spec.Workload,
 
   loss = optimizer_state['optimizer'].step(closure)
 
+  # # current_state  = current_model.module.state_dict() is a workaround for DDP
+  # if global_step==1:
+  #   torch.save(current_model.module.state_dict(), "/results/pytorch_base_model_criteo1tb_11may_global_step2.pth")
+  #   import torch.distributed as dist
+  #   import sys
+  #   dist.destroy_process_group()
+  #   sys.exit(0)
+
   return (optimizer_state, current_param_container, new_model_state)
 
 
