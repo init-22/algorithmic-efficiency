@@ -13,7 +13,7 @@ from algoperf import spec
 from algoperf.workloads.criteo1tb.criteo1tb_jax import models
 from algoperf.workloads.criteo1tb.workload import \
     BaseCriteo1TbDlrmSmallWorkload
-from custom_pytorch_jax_converter import use_pytorch_weights_inplace, use_pytorch_weights_inplace_mnist
+from custom_pytorch_jax_converter import use_pytorch_weights_inplace
 
 
 
@@ -108,7 +108,6 @@ class Criteo1TbDlrmSmallWorkload(BaseCriteo1TbDlrmSmallWorkload):
     initial_params = use_pytorch_weights_inplace(initial_params, file_name="/results/pytorch_base_model_criteo1tb_24_june.pth")
     self._param_shapes = param_utils.jax_param_shapes(initial_params)
     self._param_types = param_utils.jax_param_types(self._param_shapes)
-    return initial_params, None
     return jax_utils.replicate(initial_params), None
 
   def is_output_params(self, param_key: spec.ParameterKey) -> bool:
