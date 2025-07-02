@@ -171,12 +171,14 @@ def update_params(workload: spec.Workload,
         }, global_step)
     
   # Log the number of parameters.
-  if global_step % 100 == 0 and workload.metrics_logger is not None:
-    date_ = "2025-06-14"
-    file_name = f"/results/schedule_free_test_pytorch_weights/criteo1tb_{date_}_after_{global_step}_steps.pth"
+  if global_step % 100 == 0:
+    date_ = "2025-07-01"
+    file_name = f"/results/schedule_free_pytorch_weights/criteo1tb_{date_}_after_{global_step}_steps.pth"
     params = use_pytorch_weights_cpu_copy(new_params, file_name=file_name, replicate=True)
     are_weights_equal(new_params, params)
     del params
+  
+  breakpoint()
 
   return (new_optimizer_state, opt_update_fn), new_params, new_model_state
 

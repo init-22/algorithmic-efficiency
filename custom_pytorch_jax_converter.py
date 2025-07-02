@@ -26,6 +26,7 @@ def use_pytorch_weights_inplace(jax_params, file_name=None, replicate=False):
     # Load PyTorch state_dict
     state_dict = torch.load(file_name)
     print(state_dict.keys())
+
     # Convert PyTorch tensors to NumPy arrays
     numpy_weights = {k: v.cpu().numpy() for k, v in state_dict.items()}   
 
@@ -59,6 +60,7 @@ def use_pytorch_weights_cpu_copy(jax_params, file_name=None, replicate=False):
     # Load PyTorch state_dict lazily to CPU
     state_dict = torch.load(file_name, map_location='cpu')
     print(state_dict.keys())
+   
     # Convert PyTorch tensors to NumPy arrays
     numpy_weights = {k: v.cpu().numpy() for k, v in state_dict.items()}   
 
@@ -128,6 +130,7 @@ def move_to_cpu(tree):
 def are_weights_equal(params1, params2, atol=1e-6, rtol=1e-6):
     """Compares two JAX PyTrees of weights and logs where they differ, safely handling PMAP replication."""
     # Attempt to unreplicate if needed
+
     params1 = maybe_unreplicate(params1)
     params2 = maybe_unreplicate(params2)
 
