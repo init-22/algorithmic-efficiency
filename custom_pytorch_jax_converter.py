@@ -21,98 +21,38 @@ and assigns them to the Jax model parameters.
 The function assumes that the Jax model parameters are already initialized
 and that the PyTorch weights are in the correct format.
 """
-def use_pytorch_weights_inplace(jax_params, file_name=None, replicate=False):
 
-    # Load PyTorch state_dict
-    state_dict = torch.load(file_name)
-    print(state_dict.keys())
+def use_pytorch_weights(file_name: str):
+    jax_copy = {}
 
-    # Convert PyTorch tensors to NumPy arrays
-    numpy_weights = {k: v.cpu().numpy() for k, v in state_dict.items()}   
-
-    # --- Embedding Table ---
-    embedding_table = np.concatenate([
-        numpy_weights[f'embedding_chunk_{i}'] for i in range(4)
-    ], axis=0)  # adjust axis depending on chunking direction
-
-    jax_params['embedding_table'] = jnp.array(embedding_table)
-
-    # --- Bot MLP: Dense_0 to Dense_2 ---
-    for i, j in zip([0, 2, 4], range(3)):
-        jax_params[f'Dense_{j}']['kernel'] = jnp.array(numpy_weights[f'bot_mlp.{i}.weight'].T)
-        jax_params[f'Dense_{j}']['bias'] = jnp.array(numpy_weights[f'bot_mlp.{i}.bias'])
-
-    # --- Top MLP: Dense_3 to Dense_7 ---
-    for i, j in zip([0, 2, 4, 6, 8], range(3, 8)):
-        jax_params[f'Dense_{j}']['kernel'] = jnp.array(numpy_weights[f'top_mlp.{i}.weight'].T)
-        jax_params[f'Dense_{j}']['bias'] = jnp.array(numpy_weights[f'top_mlp.{i}.bias'])
-   
-    del state_dict
-    return jax_params
-
-
-def use_pytorch_weights_cpu_copy(jax_params, file_name=None, replicate=False):
-
-    def deep_copy_to_cpu(pytree):
-        return tree_map(lambda x: jax.device_put(jnp.array(copy.deepcopy(x)), device=jax.devices("cpu")[0]), pytree)
-
-    jax_copy = deep_copy_to_cpu(jax_params) 
     # Load PyTorch state_dict lazily to CPU
     state_dict = torch.load(file_name, map_location='cpu')
     print(state_dict.keys())
-   
+
     # Convert PyTorch tensors to NumPy arrays
-    numpy_weights = {k: v.cpu().numpy() for k, v in state_dict.items()}   
+    numpy_weights = {k: v.cpu().numpy() for k, v in state_dict.items()}
 
     # --- Embedding Table ---
     embedding_table = np.concatenate([
         numpy_weights[f'embedding_chunk_{i}'] for i in range(4)
-    ], axis=0)  # adjust axis depending on chunking direction
+    ], axis=0)  # adjust axis if chunking is not vertical
 
     jax_copy['embedding_table'] = jnp.array(embedding_table)
 
     # --- Bot MLP: Dense_0 to Dense_2 ---
     for i, j in zip([0, 2, 4], range(3)):
+        jax_copy[f'Dense_{j}'] = {}
         jax_copy[f'Dense_{j}']['kernel'] = jnp.array(numpy_weights[f'bot_mlp.{i}.weight'].T)
         jax_copy[f'Dense_{j}']['bias'] = jnp.array(numpy_weights[f'bot_mlp.{i}.bias'])
 
     # --- Top MLP: Dense_3 to Dense_7 ---
     for i, j in zip([0, 2, 4, 6, 8], range(3, 8)):
+        jax_copy[f'Dense_{j}'] = {}
         jax_copy[f'Dense_{j}']['kernel'] = jnp.array(numpy_weights[f'top_mlp.{i}.weight'].T)
         jax_copy[f'Dense_{j}']['bias'] = jnp.array(numpy_weights[f'top_mlp.{i}.bias'])
-    #jax_copy = tree_map(lambda x: jnp.array(x), jax_copy) 
+
     del state_dict
-
     return jax_copy
-
-
-def use_pytorch_weights_inplace_mnist(jax_params, file_name=None, replicate=False):
-    # Load the PyTorch checkpoint
-    ckpt = torch.load(file_name)
-    state_dict = ckpt['state_dict'] if 'state_dict' in ckpt else ckpt
-
-    print("Loaded PyTorch keys:", state_dict.keys())
-
-    # Convert to numpy
-    numpy_weights = {k: v.cpu().numpy() for k, v in state_dict.items()}
-
-    # Mapping PyTorch keys → JAX Dense layers
-    layer_map = {
-        'net.layer1': 'Dense_0',
-        'net.layer2': 'Dense_1',
-    }
-
-    for pt_name, jax_name in layer_map.items():
-        weight_key = f"{pt_name}.weight"
-        bias_key = f"{pt_name}.bias"
-
-        if weight_key not in numpy_weights or bias_key not in numpy_weights:
-            raise KeyError(f"Missing keys: {weight_key} or {bias_key} in PyTorch weights")
-
-        jax_params[jax_name]['kernel'] = jnp.array(numpy_weights[weight_key].T)  # Transpose!
-        jax_params[jax_name]['bias'] = jnp.array(numpy_weights[bias_key])
-
-    return jax_params
 
 
 def maybe_unreplicate(pytree):
@@ -122,6 +62,7 @@ def maybe_unreplicate(pytree):
         lambda x: x[0] if isinstance(x, jax.Array) and x.shape[0] == num_devices else x,
         pytree
     )
+
 
 def move_to_cpu(tree):
     return jax.tree_util.tree_map(lambda x: jax.device_put(x, device=jax.devices("cpu")[0]), tree)
@@ -143,7 +84,7 @@ def are_weights_equal(params1, params2, atol=1e-6, rtol=1e-6):
         nonlocal all_equal
         if not jnp.allclose(p1, p2, atol=atol, rtol=rtol):
             logging.info("❌ Mismatch found:")
-            logging.info(f"Shape 1: {p1.shape}, Shape 2: {p2.shape}")
+            logging.info(f"Shape : {p1.shape}, Shape 2: {p2.shape}")
             logging.info(f"Max diff: {jnp.max(jnp.abs(p1 - p2))}")
             all_equal = False
         return jnp.allclose(p1, p2, atol=atol, rtol=rtol)
@@ -156,31 +97,6 @@ def are_weights_equal(params1, params2, atol=1e-6, rtol=1e-6):
 
     if all_equal:
         logging.info("✅ All weights are equal (within tolerance)")
+    del params1
+    del params2
     return all_equal
-
-
-
-# def are_weights_equal(params1, params2, atol=1e-6, rtol=1e-6):
-#     """Compares two JAX PyTrees of weights and prints where they differ."""
-#     all_equal = True
-
-#     def compare_fn(p1, p2):
-#         nonlocal all_equal
-#         #if not jnp.allclose(p1, p2):
-#         if not jnp.allclose(p1, p2, atol=atol, rtol=rtol):
-#             logging.info("❌ Mismatch found:")
-#             logging.info(f"Shape 1: {p1.shape}, Shape 2: {p2.shape}")
-#             logging.info(f"Max diff: {jnp.max(jnp.abs(p1 - p2))}")
-#             all_equal = False
-#         return jnp.allclose(p1, p2, atol=atol, rtol=rtol)
-
-#     try:
-#         _ = jax.tree_util.tree_map(compare_fn, params1, params2)
-#     except Exception as e:
-#         logging.info("❌ Structure mismatch or error during comparison:", e)
-#         return False
-
-#     if all_equal:
-#         logging.info("✅ All weights are equal (within tolerance)")
-#     return all_equal
-
