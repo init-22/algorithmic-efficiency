@@ -36,12 +36,6 @@ def init_optimizer_state(workload: spec.Workload,
   model_params
   del model_state
   del rng
-  lr=HPARAMS['learning_rate']
-  betas=(1.0 - HPARAMS['one_minus_beta1'], HPARAMS['beta2'])
-  warmup_steps=int(HPARAMS['warmup_factor'] * workload.step_hint * 0.75)
-  weight_decay=HPARAMS['weight_decay']
-  weight_lr_power=HPARAMS['weight_lr_power']
-  r=HPARAMS['r']
 
   opt_init_fn, opt_update_fn = schedule_free_adamw(
       learning_rate=HPARAMS['learning_rate'],
